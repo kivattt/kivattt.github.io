@@ -48,7 +48,11 @@ h1 {
 }
 
 button {
-	margin-top: 10px;
+	top: 1em;
+	left: 1em;
+	position: absolute;
+	z-index: 1;
+
 	padding: 6px 14px;
 	font-size: 16px;
 	font-weight: bold;
