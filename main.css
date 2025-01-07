@@ -54,11 +54,18 @@ h2 {
 	max-width: 35rem;
 }
 
-button {
+.buttons {
 	top: 1em;
 	left: 1em;
 	position: absolute;
 	z-index: 1;
+}
+
+button {
+	/*top: 1em;
+	left: 1em;
+	position: absolute;
+	z-index: 1;*/
 
 	padding: 6px 14px;
 	font-size: 16px;
