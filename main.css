@@ -132,3 +132,7 @@ a:hover {
 	color: #585e70;
 	display: inline;
 }
+
+.authorline {
+	line-height: 28px;
+}
