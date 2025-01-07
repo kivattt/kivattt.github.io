@@ -3,11 +3,6 @@
 	src: url("fonts/NotoSerif/NotoSerif-Regular.ttf");
 }
 
-:root {
-	--toggleButtonBorderColor: #1f8db5;
-	--toggleButtonBorderColorHighlight: #00e9ff;
-}
-
 html {
 	font-size: calc(0.8999rem + 0.4000vw);
 	background: #141518;
@@ -20,7 +15,6 @@ html {
 	background: #EDD1B0;
 
 	color: #000000;
-	--toggleButtonBorderColor: #327BD0;
 }
 
 body {
@@ -61,14 +55,14 @@ button {
 	background-color: black;
 	color: #c8c8c8;
 	border: 2px solid white;
-	border-color: var(--toggleButtonBorderColor);
+	border-color: #1f8db5;
 	border-radius: 4px;
 
 	box-shadow: 4px 4px 5px rgba(0,0,0,0.35);
 }
 
 button:hover {
-	border-color: var(--toggleButtonBorderColorHighlight);
+	border-color: #00e9ff;
 }
 
 .footer img,
