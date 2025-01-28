@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="../../main.css">
+	<!-- <title>How does "git status" work?</title> -->
+	<title>Implementing "git status"</title>
+</head>
+<body>
+
+<div class="header">
+	<div class="img-wrap">
+		<img src="../../headerimage.png" alt=""></img>
+	</div>
+</div>
+
+<div class="buttons">
+	<button onclick="location.href='https://kivattt.github.io'">Home</button>
+	<button onclick="document.body.classList.toggle('light-mode')">Toggle light theme</button>
+</div>
+
+<div class="content">
+	<div class="author">
+		<!-- <h1>How does "git status" work?</h1> -->
+		<h1>Implementing<br>"git status"</h1>
+		<div class="authorline">
+			<a href="https://github.com/kivattt">
+				<img style="box-shadow: initial; width: initial; border: initial;" src="../../favicon.ico"></img>
+				kivattt
+			</a>
+			<div class="date">2025 January 7th, 09:31 CEST</div>
+		</div>
+	</div>
+
+	<p>
+	If your choice of version control is Git, you likely use <span class="snippet">git status</span> every day.
+	</p>
+
+	<p>
+	You might even have a short shell alias like <span class="snippet">gs</span>, or use an IDE with colorful filenames showing you which files have been changed without ever manually typing the command.
+	</p>
+
+	<p>
+	In this article, I will explain the details of how <span class="snippet">git status</span> works, and how I implemented it for my file manager, <a href="https://github.com/kivattt/fen">fen</a>.
+	</p>
+
+	<p>
+	When you first clone a repository, <span class="snippet">git status</span> will tell you "nothing to commit, working tree clean".
+	<br>
+	<img src="cloned_repository.png"></img>
+	<br>
+	The "working tree" is all the files in your local repository, and since you haven't made any changes yet, it is clean. Boring!
+	</p>
+
+	<p>
+	Let's add a new file called <span class="snippet">new-file.txt</span>
+	<img src="new_file.png" style="width: 100%"></img>
+	<br>
+	So, how does Git know we just created a file?
+	</p>
+
+	<p>
+	<!-- Git's internal knowledge about the state of your local repository is stored within a hidden directory called ".git".
+	<br> -->
+	Well, when we cloned this repository, Git created a flat list of all the filenames and put it inside a file called <span class="snippet">.git/index</span>.
+
+	<br>
+	Now that we've created a new file, this list is out of sync with the working tree!
+
+	<br>
+	<br>
+	<span class="note">From here on, I will refer to the <span class="snippet">.git/index</span> file as "the Git index".</span>
+
+	<br>
+	<br>
+	When a file is not in the Git index, it is "untracked", as git status just told us.
+	<br>
+	To track this file, Git tells us to use "git add"
+	<img src="staged_file.png" style="width: 100%"></img>
+	<br>
+	Viola! Our file is tracked. It is now in the Git index, which we can check with the <span class="snippet">git ls-files --stage new-file.txt</span> command.
+	</p>
+
+	<p>
+	Looking closely at the output, we can tell there's some additional metadata stored about each file in the Git index.
+	<br>
+	<br>
+	The first 3 digits in <span class="snippet">100644</span> is the octal representation of the 4-bit "object type", with <span class="snippet">100</span> (octal) signifying a regular file.
+	<br>
+	These 3 octal digits actually contain 7 bits of data, with the lower 3 bits currently unused. Here's some Python showing the 4-bit "object type" from these three octal digits. <span class="snippet">bin(0o100 >> 3) == '0b1000'</span>
+	<br>
+	<br>
+	The next 3 digits <span class="snippet">644</span> are the octal unix permission bits of this file. Regular files like this can only have 2 possible values here, 755 or 644.
+	<br>
+	<br>
+	It also stores a SHA-1 hash, more on that later.
+	</p>
+	<p>
+
+	<h2>Implementation</h2>
+	Here's the metadata I need in my implementation of <span class="snippet">git status</span>.
+	</p>
+	<img src="git_index_entry.png" style="width: 100%"></img>
+	<br>
+	The filename is not shown in this struct, since it is stored in a map key.
+
+
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	Have you ever noticed when renaming a file, <span class="snippet">git status</span> shows you both the old and new filenames?
+
+	<br>
+	<br>
+	When a file is not in the <span class="snippet">.git/index</span>, it is "untracked".
+	<br>
+	When a file is in the working tree, but not in <span class="snippet">.git/index</span>, it is "unstaged" and deleted.
+
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<!-- notes -->
+	<ul>
+		<li>Silly incremental path name reading implemented before knowing of 12-bit size header turning out to be useful</li>
+		<li>The unique way objects are hashed (null-byte thing)</li>
+		<li>Optimization</li>
+		<li>Testing (having to zip repositories)</li>
+		<li>Windows backslash path challenges</li>
+	</ul>
+
+	<h2>Integrating into fen</h2>
+	<ul>
+		<li>Unexpected new requirements (context cancellation, map lookup)</li>
+		<li>Concurrency (and when to re-run git status)</li>
+		<li>Testing on large repositories (chromium, linux, kubernetes) requiring adding a "running git status..." status message</li>
+		<li>A note on kernel filesystem caching</li>
+		<li>Limit of 15 repositories</li>
+		<li>Optimizing the color lookup</li>
+		<li>Updating on Git commands</li>
+	</ul>
+
+	<br>
+	While writing this article, I discovered and fixed 1 bug in gogitstatus and 1 bug in fen which required adding another unexpected required function to gogitstatus
+	- chmod bug
+	- addition of ExcludingDeleted(): deleted files were being highlighted (only slipped through because of IncludingDirectories)
+</div>
+
+<div class="footer">
+	<div class="img-wrap">
+		<img src="../../footerimage.png" alt=""></img>
+	</div>
+</div>
+
+</body>
+</html>

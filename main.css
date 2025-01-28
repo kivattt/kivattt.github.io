@@ -5,11 +5,15 @@
 
 :root {
 	--linkColor: #3da6fa;
+	--codeBackground: #070609;
+	--codeForeground: #c0d0d0;
+	--contentImageBorder: #202036;
+	--noteBorder: #d1b202;
 }
 
 html {
 	font-size: calc(0.8999rem + 0.4000vw);
-	background: #141518;
+	background: #141517;
 	color: #c8c8c8;
 }
 
@@ -20,6 +24,10 @@ html {
 
 	color: #000000;
 	--linkColor: #0070ff;
+	--codeBackground: #333333;
+	--codeForeground: #efefef;
+	--contentImageBorder: #a0a0f0;
+	--noteBorder: #eb6702;
 }
 
 body {
@@ -52,6 +60,12 @@ h2 {
 	margin: auto;
 	align: center;
 	max-width: 35rem;
+}
+
+.content img {
+	box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+	width: 80%;
+	border: 2px solid var(--contentImageBorder);
 }
 
 .buttons {
@@ -134,7 +148,7 @@ a:hover {
 .author a{
 	font-family: "Noto Sans", sans-serif;
 	font-size: 18px;
-	margin-right: 15px;
+	margin-right: 5px;
 }
 
 .date {
@@ -145,4 +159,23 @@ a:hover {
 
 .authorline {
 	line-height: 28px;
+}
+
+.snippet {
+	font-family: "Courier New", monospace;
+	font-size: 16px;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	padding-left: 8px;
+	padding-right: 8px;
+	margin-left:2px;
+	margin-right:2px;
+	background: var(--codeBackground);
+	color: var(--codeForeground);
+}
+
+.note {
+	padding: 3px 3px 3px 3px;
+	border: 1px solid var(--noteBorder);
+	border-radius: 8px;
 }
