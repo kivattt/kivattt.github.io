@@ -5,8 +5,7 @@
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="../../main.css">
-	<!-- <title>How does "git status" work?</title> -->
-	<title>Implementing "git status"</title>
+	<title>How does "git status" work?</title>
 </head>
 <body>
 
@@ -23,8 +22,7 @@
 
 <div class="content">
 	<div class="author">
-		<!-- <h1>How does "git status" work?</h1> -->
-		<h1>Implementing<br>"git status"</h1>
+		<h1>How does "git status" work?</h1>
 		<div class="authorline">
 			<a href="https://github.com/kivattt">
 				<img style="box-shadow: initial; width: initial; border: initial;" src="../../favicon.ico"></img>
@@ -43,7 +41,7 @@
 	</p>
 
 	<p>
-	In this article, I will explain the details of how <span class="snippet">git status</span> works, and how I implemented it for my file manager, <a href="https://github.com/kivattt/fen">fen</a>.
+	In this article, I will explain the details of how <span class="snippet">git status</span> works.
 	</p>
 
 	<p>
@@ -62,8 +60,6 @@
 	</p>
 
 	<p>
-	<!-- Git's internal knowledge about the state of your local repository is stored within a hidden directory called ".git".
-	<br> -->
 	Well, when we cloned this repository, Git created a flat list of all the filenames and put it inside a file called <span class="snippet">.git/index</span>.
 
 	<br>
@@ -102,51 +98,35 @@
 	<h2>Implementation</h2>
 	Here's the metadata I need in my implementation of <span class="snippet">git status</span>.
 	</p>
+	<p>
 	<img src="git_index_entry.png" style="width: 100%"></img>
 	<br>
 	The filename is not shown in this struct, since it is stored in a map key.
+	</p>
 
+	<h2>Unfinished</h2>
+	This article is unfinished.
+	<br>
+	While writing this article, I discovered 3 bugs.
+	<br>
+	2 bugs in <a href="https://github.com/kivattt/fen">fen</a>.
+	<br>
+	1 bug in <a href="https://github.com/kivattt/gogitstatus">gogitstatus</a>.
+	<br>
+	I have yet to fix 1 of these bugs, and haven't been able to finish the implementation section of this article.
+	<br>
+	I wrote down some things I wanted to include in this article, but didn't get around to.
+	<br>
+	Have these notes, as a treat.
 
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	Have you ever noticed when renaming a file, <span class="snippet">git status</span> shows you both the old and new filenames?
+	<p>
 
-	<br>
-	<br>
-	When a file is not in the <span class="snippet">.git/index</span>, it is "untracked".
-	<br>
-	When a file is in the working tree, but not in <span class="snippet">.git/index</span>, it is "unstaged" and deleted.
-
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<br>
-	<!-- notes -->
+	<h2>The gogitstatus library</h2>
 	<ul>
 		<li>Silly incremental path name reading implemented before knowing of 12-bit size header turning out to be useful</li>
 		<li>The unique way objects are hashed (null-byte thing)</li>
 		<li>Optimization</li>
+		<li>gitignore library being the bottleneck (regex...)</li>
 		<li>Testing (having to zip repositories)</li>
 		<li>Windows backslash path challenges</li>
 	</ul>
@@ -157,15 +137,13 @@
 		<li>Concurrency (and when to re-run git status)</li>
 		<li>Testing on large repositories (chromium, linux, kubernetes) requiring adding a "running git status..." status message</li>
 		<li>A note on kernel filesystem caching</li>
-		<li>Limit of 15 repositories</li>
+		<li>Limiting the number of stored repository changes</li>
 		<li>Optimizing the color lookup</li>
-		<li>Updating on Git commands</li>
+		<li>Updating on Git commands by watching for .git/index file changes</li>
 	</ul>
+	</p>
 
 	<br>
-	While writing this article, I discovered and fixed 1 bug in gogitstatus and 1 bug in fen which required adding another unexpected required function to gogitstatus
-	- chmod bug
-	- addition of ExcludingDeleted(): deleted files were being highlighted (only slipped through because of IncludingDirectories)
 </div>
 
 <div class="footer">
