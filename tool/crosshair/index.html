@@ -54,6 +54,8 @@
 
 		<br>
 		<br>
+		Here's my crosshair code: <span class="snippet">CSGO-LtPxH-ophAH-OC2aF-DbyYG-PSLoD</span>
+		<br>
 		<details>
 		<summary class="details-hover">What is a CS2 crosshair code?</summary>
 		<img src="cs2-screenshot.png" width="700px"></img>
@@ -197,7 +199,29 @@
 			return (sum % 256) == bytes[0]
 		}
 
+		function trim_spaces_either_side(text) {
+			startIdx = 0
+			for (let i = 0; i < text.length; i++) {
+				if (text[i] != " ") {
+					startIdx = i
+					break
+				}
+			}
+
+			endIdx = text.length - 1
+			for (let i = text.length - 1; i >= 0; i--) {
+				if (text[i] != " ") {
+					endIdx = i
+					break
+				}
+			}
+
+			return text.substring(startIdx, endIdx + 1)
+		}
+
 		function code_to_console_cmds(code, separator) {
+			code = trim_spaces_either_side(code)
+
 			if (code.length != 34) {
 				return ""
 			}
