@@ -178,3 +178,28 @@ a:hover {
 	border: 1px solid var(--noteBorder);
 	border-radius: 8px;
 }
+
+input {
+	font-family: monospace;
+	color: #eeeeee;
+	background-color: #222222;
+	border: 0px;
+	padding: 5px;
+}
+
+textarea {
+	font-family: monospace;
+	color: #eeeeee;
+	background-color: #222222;
+	border: 0px;
+	padding: 5px;
+	resize: none;
+}
+
+.details-hover {
+	color: #808080;
+}
+
+.details-hover:hover {
+	color: #d1b74d;
+}

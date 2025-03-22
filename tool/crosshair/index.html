@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="../../main.css">
+	<title>CS2 crosshair code to .cfg</title>
+</head>
+
+<body>
+	<div class="buttons">
+		<button onclick="location.href='https://kivattt.github.io'">Home</button>
+	</div>
+
+	<script>
+		function copy() {
+			document.getElementById("copySingleLineButton").textContent = "Copy (single-line)"
+
+			const inputText = document.getElementById("input").value
+			const outputText = code_to_console_cmds(inputText, "\n")
+
+			if (outputText != "") {
+				navigator.clipboard.writeText(outputText)
+				document.getElementById("copyButton").textContent = "Copied!"
+			}
+		}
+
+		function copy_single_line() {
+			document.getElementById("copyButton").textContent = "Copy"
+
+			const inputText = document.getElementById("input").value
+			const outputText = code_to_console_cmds(inputText, ";")
+
+			if (outputText != "") {
+				navigator.clipboard.writeText(outputText)
+				document.getElementById("copySingleLineButton").textContent = "Copied! (single-line)"
+			}
+		}
+	</script>
+
+	<div style="margin:1em">
+		<br>
+		<br>
+		<h2>CS2 crosshair code to .cfg</h2>
+		<input autofocus placeholder="CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" size="40" type="text" id="input" name="input">
+		<br>
+		<br>
+		<textarea readonly disabled placeholder="Commands will appear here" rows="20" cols="60" id="output" name="output"></textarea>
+		<br>
+
+		<button id="copyButton" onclick="copy()">Copy</button>
+		<button id="copySingleLineButton" onclick="copy_single_line()">Copy (single-line)</button>
+
+		<br>
+		<br>
+		<details>
+		<summary class="details-hover">What is a CS2 crosshair code?</summary>
+		<img src="cs2-screenshot.png" width="700px"></img>
+		<br>
+		In Counter-Strike 2, you can import "crosshair codes" under the Settings menu -&gt Game -&gt Crosshair -&gt Share or Import
+		</details>
+	</div>
+
+	<script>
+		const ALPHABET = "ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789"
+		const BASE = ALPHABET.length
+
+		class CrossHair {
+			color = 5 // 5 is custom color
+			red = 0
+			green = 0
+			blue = 0
+			alpha = 0
+			alphaEnabled = false
+
+			outline = 0
+			outlineEnabled = false
+
+			length = 0
+			thickness = 0
+			gap = 0
+
+			followRecoil = false
+			centerDot = false
+
+			// 2: Classic
+			// 4: Classic Static
+			// 5: Legacy
+			style = 2
+
+			tStyle = false
+			deployedWeaponGap = false
+			splitDistance = 0
+			innerSplitAlpha = 0
+			outerSplitAlpha = 0.3 // FIXME: Lowest value allowed?
+			splitSizeRatio = 0
+		}
+
+		// https://blog.vjeux.com/2013/javascript/conversion-from-uint8-to-int8-x-24.html
+		function uint8_to_int8(n) {
+			return n << 24 >> 24
+		}
+
+		// Returns null on error
+		function code_to_bytes(code) {
+			sum = BigInt(0)
+
+			digit = 0
+			for (let i = 5; i < code.length; i++) {
+				if ((i - 4) % 6 == 0) {
+					continue; // A dash '-'
+				}
+
+				character = code[i]
+				pos = ALPHABET.indexOf(character)
+				if (pos == -1) {
+					return null
+				}
+
+				sum += BigInt(pos) * BigInt(BASE) ** BigInt(digit)
+				digit++
+			}
+
+			const byteArray = new Uint8Array(18)
+			for (let i = 0; i < 18; i++) {
+				byteArray[17-i] = Number((sum >> BigInt(i*8)) & BigInt(0xff))
+			}
+
+			return byteArray
+		}
+
+		function bytes_to_crosshair(bytes) {
+			const crosshair = new CrossHair()
+			crosshair.color = bytes[10] & 0b111
+			crosshair.red = bytes[4]
+			crosshair.green = bytes[5]
+			crosshair.blue = bytes[6]
+			crosshair.alpha = bytes[7]
+			crosshair.alphaEnabled = (bytes[13] >> 6) & 1 == 1 ? true : false
+
+			crosshair.outline = (bytes[3] & 0b111) / 2 // FIXME: Only 0.0, 0.5, 1.0, 2.0 and 3.0 are allowed here...
+			crosshair.outlineEnabled = (bytes[10] >> 3) & 1 == 1 ? true : false
+
+			crosshair.length = bytes[14] / 10
+			crosshair.thickness = bytes[12] / 10
+			crosshair.gap = uint8_to_int8(bytes[2]) / 10
+
+			crosshair.followRecoil = (bytes[8] >> 7) & 1 == 1 ? true : false
+			crosshair.centerDot = (bytes[13] >> 4) & 1 == 1 ? true : false
+			crosshair.style = (bytes[13] >> 1) & 0b111
+			crosshair.tStyle = (bytes[13] >> 7) & 1 == 1 ? true : false
+			crosshair.deployedWeaponGap = (bytes[13] >> 5) & 1 == 1 ? true : false
+			crosshair.splitDistance = bytes[8] & 0b11111 // FIXME: Values above 16 are not allowed?
+			crosshair.innerSplitAlpha = (bytes[10] >> 4) / 10 // FIXME: Values above 1.0 are not allowed?
+			crosshair.outerSplitAlpha = (bytes[11] & 0x0f) / 10 // FIXME: Values below 0.3 or above 1.0 are not allowed?
+			crosshair.splitSizeRatio = (bytes[11] >> 4) / 10 // FIXME: Values above 1.0 are not allowed?
+			return crosshair
+		}
+
+		function crosshair_to_console_cmds(c, separator) {
+			commands = "crosshair true" + separator
+			commands += "cl_crosshaircolor " + c.color + separator
+			commands += "cl_crosshairstyle " + c.style + separator
+
+			commands += "cl_crosshaircolor_r " + c.red + separator
+			commands += "cl_crosshaircolor_g " + c.green + separator
+			commands += "cl_crosshaircolor_b " + c.blue + separator
+			commands += "cl_crosshairusealpha " + c.alphaEnabled + separator
+			commands += "cl_crosshairalpha " + c.alpha + separator
+
+			commands += "cl_crosshairsize "    + c.length + separator
+			commands += "cl_crosshairthickness " + c.thickness + separator
+			commands += "cl_crosshair_drawoutline " + c.outlineEnabled + separator
+			commands += "cl_crosshair_outlinethickness " + c.outline + separator
+
+			commands += "cl_crosshairgap " + c.gap + separator
+			commands += "cl_crosshairgap_useweaponvalue " + c.deployedWeaponGap + separator
+
+			commands += "cl_crosshair_t " + c.tStyle + separator
+			commands += "cl_crosshairdot " + c.centerDot + separator
+			commands += "cl_crosshair_recoil " + c.followRecoil + separator
+
+			return commands
+		}
+
+		function verify_checksum(bytes) {
+			if (bytes.length != 18) {
+				return false
+			}
+
+			sum = 0
+			for (let i = 1; i < 18; i++) {
+				sum += bytes[i]
+			}
+
+			return (sum % 256) == bytes[0]
+		}
+
+		function code_to_console_cmds(code, separator) {
+			if (code.length != 34) {
+				return ""
+			}
+
+			compare = "CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"
+			for (let i = 0; i < code.length; i++) {
+				compareChar = compare[i]
+				if (compareChar == 'x') {
+					continue
+				}
+
+				codeChar = code[i]
+				if (codeChar != compareChar) {
+					return ""
+				}
+			}
+
+			bytes = code_to_bytes(code)
+			if (bytes == null) {
+				return "Invalid crosshair code"
+			}
+
+			if (verify_checksum(bytes) == false) {
+				return "Invalid crosshair code (wrong checksum)"
+			}
+
+			crosshair = bytes_to_crosshair(bytes)
+			// Debugging
+			//console.log(crosshair)
+			//return bytes
+			return crosshair_to_console_cmds(crosshair, separator)
+		}
+
+		function onChange(e) {
+			document.getElementById("copyButton").textContent = "Copy"
+			document.getElementById("copySingleLineButton").textContent = "Copy (single-line)"
+
+			document.getElementById("output").textContent = code_to_console_cmds(e.originalTarget.value, "\n")
+		}
+
+		const input = document.getElementById("input")
+		input.addEventListener("input", onChange)
+	</script>
+</body>
+</html>
