@@ -85,7 +85,7 @@ button {
 	font-weight: bold;
 	cursor: pointer;
 
-	background-color: black;
+	background-image: linear-gradient(#080808, #000000);
 	color: #c8c8c8;
 	border: 2px solid white;
 	border-color: #1f8db5;
@@ -171,6 +171,27 @@ a:hover {
 	margin-right:2px;
 	background: var(--codeBackground);
 	color: var(--codeForeground);
+}
+
+pre {
+	background-color: var(--codeBackground);
+	color: var(--codeForeground);
+	border-radius: 0.2rem;
+	padding: 5px;
+}
+
+pre code {
+	white-space: inherit;
+}
+
+code {
+	background: var(--codeBackground);
+	color: var(--codeForeground);
+	white-space: nowrap;
+	tab-size: 4;
+	font-size: 12pt;
+	line-height: 150%;
+	display: block;
 }
 
 .note {

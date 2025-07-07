@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="../../main.css">
+	<title>Vectorizing a hex decoder</title>
+</head>
+<body>
+
+<div class="header">
+	<div class="img-wrap">
+		<img src="../../headerimage.png" alt=""></img>
+	</div>
+</div>
+
+<div class="buttons">
+	<button onclick="location.href='https://kivattt.github.io'">Home</button>
+	<button onclick="document.body.classList.toggle('light-mode')">Toggle light theme</button>
+</div>
+
+<div class="content">
+	<div class="author">
+		<h1>Vectorizing a hex decoder</h1>
+		<div class="authorline">
+			<a href="https://github.com/kivattt">
+				<img style="box-shadow: initial; width: initial; border: initial;" src="../../favicon.ico"></img>
+				kivattt
+			</a>
+			<div class="date">2025 July 7th, 05:29 CEST</div>
+		</div>
+	</div>
+
+	<p>
+	When you write code like this to sum numbers in a list, you're adding one number at a time conceptually.
+	<br>
+
+	<pre><code>int sum(std::vector&ltint&gt &<span style="color: #51e06e">numbers</span>) {
+	int <span style="color: #5199e0">sum</span> = 0;
+	for (int &<span style="color: #e0dc51">num</span> : <span style = "color: #51e06e">numbers</span>) {
+		<span style="color: #5199e0">sum</span> += <span style="color: #e0dc51">num</span>;
+	}
+	return <span style="color: #5199e0">sum</span>;
+}</code></pre>
+
+	Utilizing <a href="https://en.wikipedia.org/wiki/Single_instruction,_multiple_data">SIMD</a> instructions, we can instead perform addition in multiple "lanes". In this C++ code we loop through 4 numbers at a time, adding them to their respective lane:
+
+	<pre><code style="font-size: 11pt">__m128i <span style="color: #5199e0">sum</span> = _mm_setzero_si128();
+
+for (int i = 0; i < <span style = "color: #51e06e">numbers</span>.size(); i += 4) {
+	__m128i <span style="color: #e0dc51">nums</span> = _mm_lddqu_si128(reinterpret_cast<__m128i*>(&<span style = "color: #51e06e">numbers</span>[i]));
+	<span style="color: #5199e0">sum</span> = _mm_add_epi32(<span style="color: #5199e0">sum</span>, <span style="color: #e0dc51">nums</span>);
+}</code></pre>
+	</p>
+
+	<p>
+	Ideally, your compiler is smart enough to produce the fast vectorized version without having to write it manually. In this case it most certainly will, but sometimes the problem is not trivial for the compiler to vectorize...
+	<br>
+	<br>
+	<br>
+	</p>
+
+	<h2>
+	A non-trivial problem
+	</h2>
+	<p>
+	Decoding hexadecimal strings is pretty straight-forward.
+	</p>
+
+	<img src="hex_explanation.png" alt="Diagram showing how to decode hexadecimal strings"></img>
+
+	<p>
+	Here's my initial implementation in <a href="https://odin-lang.org/">Odin</a>:
+
+	<pre><code>for i := 0; i < len(<span style="color: #51e06e">bytes</span>); i += 2 {
+	<span style="color: #e0dc51">a</span> := hex_to_index(<span style="color: #51e06e">bytes</span>[i + 0])
+	<span style="color: #e07a51">b</span> := hex_to_index(<span style="color: #51e06e">bytes</span>[i + 1])
+
+	if (<span style="color: #e0dc51">a</span> | <span style="color: #e07a51">b</span>) < 0 {
+		break
+	}
+
+	<span style="color: #5199e0">// <span style="color: #e0dc51">a</span> << 4 | <span style="color: #e07a51">b</span> is equivalent to <span style="color: #e0dc51">a</span> * 16 + <span style="color: #e07a51">b</span> in this case</span>
+	strings.write_byte(&sb, u8(<span style="color: #e0dc51">a</span> << 4 | <span style="color: #e07a51">b</span>))
+}</code></pre>
+
+	Quite simple, but still too complicated for the compiler to vectorize automatically, so we will have to do it ourselves. (fun!)
+	</p>
+	<br>
+	<br>
+
+	<h2>Implementation</h2>
+	<p>
+	For the implementation, I arbitrarily chose to use 128-bit SIMD instructions.
+	That is 16 bytes at a time, much better than 1!
+	</p>
+
+	<p>
+	The first step is to implement the <span class="snippet">hex_to_index</span> function in SIMD.
+
+	It takes a hex digit as input, and gives you the value as an integer, returning -1 for invalid digits.
+	</p>
+
+	<img src="ascii.png" alt="The printable ASCII table" style="float: right;width: 30% !important"></img>
+	<p>
+	The hexadecimal digits are: <span class="snippet">0123456789abcdef</span>
+	<br>
+	<br>
+	That is two separate contiguous ranges of the ASCII table, meaning we need to handle those two ranges separately.
+	</p>
+	<br>
+	<br>
+
+	<h2><b>0123456789</b></h2>
+	<p>
+	Let's start with the <span class="snippet">0123456789</span> range. <!-- I decided to make 0 the invalid output instead of -1, because its much simpler to deal with. -->
+	<br>
+
+	First, let's subtract by the ASCII value of '0'. That way the digits line up with their values.
+	We want to use a "saturating" subtraction, so that values below 0 will be set to 0.
+	<br>
+	But now, every character with a value below the '0' character will have the same output of 0!
+	<br>
+	<br>
+	If we instead subtract by <span class="snippet">'0' - 1</span>, then every invalid character below '0' will output 0, indicating an invalid digit.
+	</p>
+
+	<p>
+	With Odin's incredible <a href="https://pkg.odin-lang.org/core/simd/">simd package</a>, that code looks like this:
+	<pre><code>a := simd.saturating_sub(<span style="color: #51e06e">data</span>, '0' - 1)</code></pre>
+	</p>
+
+	<p>
+	Great! But characters above '9' should be marked invalid aswell...
+	<br>
+
+	Since we made 0 the invalid digit indicator, our valid values have been shifted up by 1.
+	So we want to set values above 10 to 0.
+	<br>
+	<br>
+
+	We can do this by checking for a valid value. If the value is less than 11, we want to keep it.
+	The <span class="snippet">simd.lanes_lt()</span> instruction outputs a mask with the value 0xFF where this condition holds true.
+	If we then bitwise-AND the number with this mask, the valid range of '0' to '9' in the input will be kept, while every other input character will output 0.
+	</p>
+
+	<pre><code style="font-size: 11pt">aMask := simd.lanes_lt(a, 10 + 1) <span style="color: #5199e0">// Less than 11 is 0xFF in the mask</span>
+a = simd.bit_and(a, aMask) <span style="color: #5199e0">// Bitwise AND</span></code></pre>
+	<br>
+	<br>
+
+	<h2><b>abcdef</b></h2>
+	<p>
+	We handle the <span class="snippet">abcdef</span> range the exact same way as <span class="snippet">0123456789</span>.
+	</p>
+
+	<pre><code>// 'a' through 'f'
+b := simd.saturating_sub(<span style="color: #51e06e">data</span>, 'a' - 1)
+bMask := simd.lanes_lt(b, 6 + 1) <span style="color: #5199e0">// 6 is the length of "abcdef"</span>
+b = simd.bit_and(b, bMask)</code></pre>
+	<br>
+	<br>
+
+	<h2>Invalid input</h2>
+	<pre><code>b = simd.bit_or(a, b) <span style="color: #5199e0">// Bitwise OR the two input ranges</span>
+invalid := simd.reduce_or(simd.lanes_eq(b, 0)) != 0
+if invalid {
+	break
+}</code></pre>
+
+	<p>
+	If we bitwise-OR the two input ranges, that value will be non-zero for a valid digit.
+	<br>
+
+	We use <span class="snippet">simd.lanes_eq(b, 0)</span> to create a mask with 0xFF in every position where a 0 was found.
+	Then, <span class="snippet">simd.reduce_or()</span> returns a single number which is a bitwise-OR of every number in the mask.
+	That number will be 0xFF if there is any invalid digit in the 16-byte chunk of input text.
+	</p>
+	<br>
+	<br>
+
+	<h2>Correcting the range</h2>
+	<p>
+	Now that we've skipped any invalid input, we have a lot more freedom to do what we need to.
+	</p>
+
+	<pre><code>// Get the value of 'a' through 'f', starting at 11
+b = simd.saturating_sub(<span style="color: #51e06e">data</span>, 'a' - 11)
+b = simd.bit_or(a, b)
+b = simd.sub(b, 1)</code></pre>
+
+	<p>
+	In this step, we offset the <span class="snippet">abcdef</span> range by 10, so the whole <span class="snippet">0123456789abcdef</span> range is within 1 to 16.
+	Finally, we subtract 1 to obtain the 0 to 15 output range.
+	</p>
+	<br>
+	<br>
+
+	<h2>Final output!</h2>
+	<p>
+	We have to do something a little weird to multiply every other digit by 16.
+	</p>
+
+	<pre><code>left := simd.shuffle(b, b, 0, 2, 4, 6, 8, 10, 12, 14)
+left = simd.shl(left, 4) <span style="color: #5199e0">// Multiply by 16</span>
+right := simd.shuffle(b, b, 1, 3, 5, 7, 9, 11, 13, 15)
+
+result := simd.bit_or(left, right)</code></pre>
+
+	<p>
+	We first produce a list of every even-indexed digit, and left-shift it by 4, which is equivalent to multiplying by 16.
+	<br>
+	A second list of every odd-indexed digit is then bitwise-OR'd together to produce the final 8-byte output.
+	</p>
+	<br>
+	<br>
+
+	<h2>
+	Sidenote
+	</h2>
+	<p>
+	Since SIMD operates on a fixed size length of data, I had to leave the final few bytes to my scalar (not vectorized) implementation.
+	The old implementation handled errors the way I wanted, so I didn't have to come up with a new way to do error handling.
+	<br>
+	<br>
+	The hex decoder is case-insensitive so that <span class="snippet">abcdef</span> and <span class="snippet">ABCDEF</span> both work by abusing an old ASCII trick of bitwise-ORing the input by <span class="snippet">0b00100000</span>.
+
+	<br>
+	<br>
+	<i><b>You can find the source code for my final vectorized hex decoder <a href="https://github.com/kivattt/datatool/blob/95a1e9f9db7dd674f5e1238f838e07e89dc42eff/decoding/hex.odin#L26">here.</a></b></i>
+	</p>
+	<br>
+	<br>
+
+	<h2>
+	Which problems can be vectorized?
+	</h2>
+	<p>
+	Problems you might solve with threads!
+	<br>
+	<br>
+
+	Problems with little to no serial dependency, acting on packed memory such as lists of fixed-size elements can greatly benefit from SIMD.
+	<br>
+	<br>
+
+	Where applicable, you can also combine threads with SIMD, if you believe it will perform even better.
+	<br>
+	<br>
+
+	Where you might otherwise use threads to speed something up, vectorizing <i>could</i> be a less bug-prone option (with lower latency!).
+	</p>
+	<br>
+	<br>
+
+	<h2>
+	Do I even need to?
+	</h2>
+	<p>
+	Sometimes, the standard library of your language may come to the rescue.
+	<br>
+	For example, the C# <a href="https://learn.microsoft.com/en-us/dotnet/api/system.string.indexof?view=net-9.0">String.IndexOf()</a> function is implemented with SIMD (since <a href="https://github.com/dotnet/runtime/commit/57f1f7f133c3b2624b2513b629ec4752b7b92844">2018</a>), which can speed up string searching especially if you're replacing a slow function that uses regex.
+	</p>
+	<br>
+	<br>
+
+	<h2>
+	How do I do this?
+	</h2>
+	<p>
+	<img src="paper.png" style="float: right; width:30% !important"></img>
+	If you know a problem can be vectorized, it is helpful to think of the problem in terms of a single element at a time.
+	Pull out a piece of paper and think through the problem in small steps.
+	<br>
+
+	Scroll through the <a href="https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html">Intel Intrinsics Guide</a> to get an idea of what's possible.
+	</p>
+	<br>
+	<br>
+
+	<h2>
+	How did you do this?
+	</h2>
+	<p>
+	<a href="https://www.computerenhance.com">Computer, Enhance!</a> showed me how to use the Intel intrinsic functions in C++, and taught me a whole bunch of other things!
+	<br>
+	<br>
+
+	I prototyped my ideas with Python3, printing every possible input and output for byte values.
+	Once I thought I had a working solution, I wrote it in C++ before porting it to Odin with its simd package.
+	The Odin simd package surprised me, it's a much better API than the Intel intrinsics and made it effortless to port.
+	<br>
+	<br>
+
+	Google and random Stackoverflow answers helped me when I was stuck, and reading vectorized code has helped me see possibilities I hadn't seen before.
+	<br>
+	<br>
+
+	Here are some online examples of using SIMD in C++ code:
+	<br>
+	<a href="https://github.com/spotify/spotify-json/blob/master/src/detail/escape_sse42.cpp">spotify-json escaping reserved characters to prevent injection attacks</a>
+	<br>
+	<a href="https://github.com/aklomp/base64/blob/master/lib/arch/ssse3/dec_loop.c">A vectorized base64 decoder</a>
+
+	</p>
+	<br>
+
+	<p style="text-align:center"><b>Thank you for reading!</b></p>
+
+	<br>
+</div>
+
+<div class="footer">
+	<div class="img-wrap">
+		<img src="../../footerimage.png" alt=""></img>
+	</div>
+</div>
+
+</body>
+</html>
